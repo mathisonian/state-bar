@@ -61,7 +61,7 @@ var LineGraph = function(selector, data, images, opts) {
     for(var i=0; i<1; i+= 1 / numPoints) {
         data.push({
             x: i,
-            y: 1
+            y: 0
         });
     }
     
@@ -103,18 +103,22 @@ var LineGraph = function(selector, data, images, opts) {
 
 
     var time = 1000;
-    var hitMean = 1; 
+    var hitMean = 1;
+    var curMean = 0; 
     setInterval(function() {
 
         var ys = _.map(_.range(numPoints), function() { return Math.random() / 3; });
         var mean = _.reduce(ys, function(memo, num) { return memo + num;}, 0) / numPoints;
 
         ys = _.map(ys, function(num) {
-            num += (hitMean - mean);
+            num += (curMean - mean);
             return num;
         });
 
-        hitMean -= 0.05;
+        if(curMean < hitMean) {
+            curMean += 0.05;
+        }
+
 
         data = _.map(_.zip(_.range(0, 1, 1 / numPoints), ys), function(arr) {
             return {
@@ -143,41 +147,88 @@ var LineGraph = function(selector, data, images, opts) {
     // this.zoomed = zoomed;
     // this.updateAxis = updateAxis;
     // this.data = data;
-    var path = d3.geo.path()
-    .projection(null);
-
 
     var stateSize = 48;
+    var stateMap = {};
 
+    _.each(d3.entries(states), function(d) {
 
-      d3.select("body").selectAll(".state")
-      .data(d3.entries(states))
-    .enter().append("div")
-      .attr("class", "state")
-      .text(function(d) { return d.key; })
-    .append("svg")
-      .attr("width", stateSize)
-      .attr("height", stateSize)
-    .append("path")
-      .datum(function(d) { return topojson.feature(d.value, d.value.objects.icon); })
-      .attr("d", function(d) {
-        var p = path(d);
-        console.log(path.area(d));
-        var commands = p.split(/(?=[LMC])/);
+        var canvas = d3.select(selector).append("canvas")
+            .attr('class', d.key)
+            .attr('width', stateSize)
+            .attr('height', stateSize);
 
-        var pointArrays = commands.map(function(d){
-            var pointsArray = d.slice(1, d.length).split(',');
-            var pairsArray = [];
-            for(var i = 0; i < pointsArray.length; i += 2){
-                pairsArray.push([+pointsArray[i], +pointsArray[i+1]]);
+        var context = canvas.node().getContext("2d");
+
+        var path = d3.geo.path()
+            .projection(null)
+            .context(context);
+
+        var feature = topojson.feature(d.value, d.value.objects.icon);
+        var totalArea = path.area(feature);
+
+        path(topojson.feature(d.value, d.value.objects.icon));
+        context.fillStyle = 'red';
+        context.fill();
+
+        stateMap[d.key] = {
+            context: context,
+            path: path,
+            totalArea: totalArea
+        };
+
+    });
+
+    $('canvas').mousemove(function(e) {
+
+        var state = $(this).attr('class');
+        console.log(state);
+        console.log('Total Area: ' + stateMap[state].totalArea);
+
+        var totalArea = stateMap[state].totalArea;
+        var currentArea = 0;
+
+        var x = 0;
+        var y = stateSize;
+        var context = stateMap[state].context;
+
+        var interval = setInterval(function() {
+            // console.log(context.getImageData(x, y, 1, 1).data);
+
+            var isContained = context.getImageData(x, y, 1, 1).data[0] === 255;
+
+            if(isContained) {
+                context.fillStyle = 'blue';
+                context.fillRect( x, y, 1, 1 );
+                currentArea++;
+            } else {
+                // context.fillStyle = 'green';
             }
-            return pairsArray;
-        });
 
-        // console.log(pointArrays);
+            
 
-        return p;
-        });
+            if(currentArea / totalArea >= 0.5) {
+                clearInterval(interval);
+            }
+
+            x+=1;
+
+            if(x >= stateSize) {
+                x = 0;
+                y--;
+            }
+
+            if(y < 0) {
+                clearInterval(interval);
+            }
+
+        }, 0);
+
+
+        $(this).unbind();
+
+    });
+
 
 };
 

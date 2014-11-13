@@ -24,18 +24,18 @@ var $mobileEl = $('#mobileContent');
 var draw = function() {
     emitter.removeAllListeners();
 
-    if(desktopView) {
-        desktopView.destroy();
-    }
-    if(mobileView) {
-        mobileView.destroy();
-    }
+    // if(desktopView) {
+    //     desktopView.destroy();
+    // }
+    // if(mobileView) {
+    //     mobileView.destroy();
+    // }
 
-    if($(window).width() > MOBILE_BREAKPOINT) {
+    // if($(window).width() > MOBILE_BREAKPOINT) {
         desktopView = new DesktopViewController($desktopEl);
-    } else {
-        mobileView = new MobileViewController($mobileView);
-    }
+    // } else {
+    //     mobileView = new MobileViewController($mobileView);
+    // }
 };
 
 window.onresize = draw;

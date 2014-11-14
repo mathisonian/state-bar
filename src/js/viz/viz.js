@@ -12,9 +12,20 @@ var margin = {
     left: 45
 };
 
+function createContext(width, height) {
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas.getContext('2d');
+}
+
+
 var LineGraph = function(selector, data, images, opts) {
 
     var self = this;
+
+    this.currentMean = 0.5;
+    this.stateChangeFlags = {};
 
     if(!opts) {
         opts = {
@@ -22,10 +33,8 @@ var LineGraph = function(selector, data, images, opts) {
         };
     }
 
-    var width = (opts.width || $(selector).width()) - margin.left - margin.right;
-    var height = (opts.height || (width * 0.6)) - margin.top - margin.bottom;
-
-    data = data || [];
+    var width = 50;
+    var height = 48;
 
 
     this.x = d3.scale.linear()
@@ -33,7 +42,7 @@ var LineGraph = function(selector, data, images, opts) {
         .range([0, width]);
 
     this.y = d3.scale.linear()
-        .domain([0, 2])
+        .domain([0, 1])
         .range([height, 0]);
 
     this.line = d3.svg.line()
@@ -45,25 +54,16 @@ var LineGraph = function(selector, data, images, opts) {
         }).interpolate('bundle');
 
 
-    var svg = d3.select(selector)
-        .append('svg:svg')
-        .attr('class', 'line-plot')
-        .attr('width', width + margin.left + margin.right)
-        .attr('height', height + margin.top + margin.bottom)
-        .append('svg:g')
-        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
+    // var numPoints = 20;
+    // var data = [];
 
-
-    var numPoints = 20;
-    var data = [];
-
-    for(var i=0; i<1; i+= 1 / numPoints) {
-        data.push({
-            x: i,
-            y: 0
-        });
-    }
+    // for(var i=0; i<1; i+= 1 / numPoints) {
+    //     data.push({
+    //         x: i,
+    //         y: 0
+    //     });
+    // }
     
     this.area = d3.svg.area()
         .x(function(d) { return self.x(d.x); })
@@ -72,161 +72,157 @@ var LineGraph = function(selector, data, images, opts) {
         .interpolate('bundle');
 
 
-    svg.append('path')
-        .datum(data)
-        .attr('class', 'area')
-        .attr('d', self.area);
-
-    svg.append('path')
-        .datum(data)
-        .attr('class', 'line')
-        // .attr('stroke', 'none')
-        .style('fill', 'none')
-        .attr('d', self.line);
-
-
-  // svg.append("linearGradient")
-  //     .attr("id", "water-gradient")
-  //     .attr("gradientUnits", "userSpaceOnUse")
-  //     .attr("x1", 0)
-  //     .attr("y1", self.y(0))
-  //     .attr("x2", 0)
-  //     .attr("y2", self.y(2))
-  //     .selectAll("stop")
-  //     .data([
-  //       {offset: "0%", color: "#121438"},
-  //       {offset: "100%", color: "#145ef2"}
-  //     ])
-  //   .enter().append("stop")
-  //     .attr("offset", function(d) { return d.offset; })
-  //     .attr("stop-color", function(d) { return d.color; });
-
-
-    var time = 1000;
-    var hitMean = 1;
-    var curMean = 0; 
-    setInterval(function() {
-
-        var ys = _.map(_.range(numPoints), function() { return Math.random() / 3; });
-        var mean = _.reduce(ys, function(memo, num) { return memo + num;}, 0) / numPoints;
-
-        ys = _.map(ys, function(num) {
-            num += (curMean - mean);
-            return num;
-        });
-
-        if(curMean < hitMean) {
-            curMean += 0.05;
-        }
-
-
-        data = _.map(_.zip(_.range(0, 1, 1 / numPoints), ys), function(arr) {
-            return {
-                x: arr[0],
-                y: arr[1]
-            }
-        });
-
-        svg.select('.line')
-            .datum(data)
-            .transition()
-            .ease('linear')
-            .duration(time)
-            .attr('d', self.line);
-        
-        svg.select('.area')
-            .datum(data)
-            .transition()
-            .ease('linear')
-            .duration(time)
-            .attr('d', self.area);
-
-    }, time);
-
-    // this.svg = svg;
-    // this.zoomed = zoomed;
-    // this.updateAxis = updateAxis;
-    // this.data = data;
-
     var stateSize = 48;
     var stateMap = {};
 
+    var svg = d3.select(selector).append('svg').attr('width', 0).attr('height', 0);
+
     _.each(d3.entries(states), function(d) {
 
-        var canvas = d3.select(selector).append("canvas")
-            .attr('class', d.key)
-            .attr('width', stateSize)
-            .attr('height', stateSize);
 
-        var context = canvas.node().getContext("2d");
+        var context = createContext(stateSize, stateSize);
 
-        var path = d3.geo.path()
+        var canvasPath = d3.geo.path()
             .projection(null)
             .context(context);
 
-        var feature = topojson.feature(d.value, d.value.objects.icon);
-        var totalArea = path.area(feature);
+        var path = d3.geo.path().projection(null);
 
-        path(topojson.feature(d.value, d.value.objects.icon));
-        context.fillStyle = 'red';
+        var feature = topojson.feature(d.value, d.value.objects.icon);
+
+        canvasPath(feature);
+        context.fillStyle = '#FF0000';
+        context.lineWidth = 0.1;
         context.fill();
+
+
+        var totalArea = 0;
+        for(var y=stateSize-1; y>=0; y--) {
+            for(var x=0; x < stateSize; x++) {
+                var isContained = context.getImageData(x, y, 1, 1).data[0] === 255;
+                if(isContained) {
+                    totalArea += 1.0;
+                }
+            }
+        }
 
         stateMap[d.key] = {
             context: context,
+            feature: feature,
             path: path,
             totalArea: totalArea
         };
 
+        svg.append('clipPath')
+            .attr('id', 'clip-' + d.key)
+            .append('path')
+            .attr('d', path(feature));
+
     });
 
-    $('canvas').mousemove(function(e) {
 
-        var state = $(this).attr('class');
-        console.log(state);
-        console.log('Total Area: ' + stateMap[state].totalArea);
+    var heightFromState = function(s, threshold) {
+        var state = stateMap[s];
 
-        var totalArea = stateMap[state].totalArea;
+        var context = state.context;
+        var totalArea = state.totalArea;
         var currentArea = 0;
 
-        var x = 0;
-        var y = stateSize;
-        var context = stateMap[state].context;
+        if(threshold >= 1) {
+            return 1.0;
+        }
 
-        var interval = setInterval(function() {
-            // console.log(context.getImageData(x, y, 1, 1).data);
+        for(var y=stateSize-1; y>=0; y--) {
+            for(var x=0; x < stateSize; x++) {
+                var isContained = context.getImageData(x, y, 1, 1).data[0] === 255;
+                var isHalf = context.getImageData(x, y, 1, 1).data[1] === 255;
 
-            var isContained = context.getImageData(x, y, 1, 1).data[0] === 255;
+                if(isHalf) {
+                    currentArea += 0.0;
+                } else if(isContained) {
+                    currentArea += 1.0;
+                }
 
-            if(isContained) {
-                context.fillStyle = 'blue';
-                context.fillRect( x, y, 1, 1 );
-                currentArea++;
-            } else {
-                // context.fillStyle = 'green';
+                if(currentArea / totalArea > threshold) {
+                    return (stateSize - y) / stateSize;
+
+                }
+
+            }
+        }
+
+        return 1.0;
+    };
+
+    _.each(d3.entries(states), function(d) {
+
+        var svg = d3.select(selector).append('svg').attr('width', stateSize).attr('height', stateSize * 2).attr('class', 'state-svg');
+
+        var path = stateMap[d.key].path;
+        var feature = stateMap[d.key].feature;
+
+        self.stateChangeFlags[d.key] = false;
+
+
+        var target = heightFromState(d.key, self.currentMean);
+        var numPoints = 20;
+
+
+        var data = [];
+        for(var i=0; i<1; i+= 1 / numPoints) {
+            data.push({
+                x: i,
+                y: target
+            });
+        }
+
+        var g = svg.append('g').attr('tranform', 'translate(' + (2 * stateSize) + ',0)');
+        
+        g.append('path')
+            .datum(data)
+            .attr('clip-path', 'url(#clip-' + d.key + ')')
+            .attr('class', 'area')
+            .attr('d', self.area);
+
+
+
+        var time = 1000;
+
+        setInterval(function() {
+
+            if(self.stateChangeFlags[d.key]) {
+                target = heightFromState(d.key, self.currentMean);
+                self.stateChangeFlags[d.key] = false;
             }
 
+            var ys = _.map(_.range(numPoints), function() { return Math.random() / 7; });
+            var mean = _.reduce(ys, function(memo, num) { return memo + num;}, 0) / numPoints;
+
+            ys = _.map(ys, function(num) {
+                num += (target - mean);
+                return num;
+            });
+
+            data = _.map(_.zip(_.range(0, 1, 1 / numPoints), ys), function(arr) {
+                return {
+                    x: arr[0],
+                    y: arr[1]
+                };
+            });
             
+            svg.select('.area')
+                .datum(data)
+                .transition()
+                .ease('linear')
+                .duration(time)
+                .attr('d', self.area);
 
-            if(currentArea / totalArea >= 0.5) {
-                clearInterval(interval);
-            }
+        }, time);
 
-            x+=1;
-
-            if(x >= stateSize) {
-                x = 0;
-                y--;
-            }
-
-            if(y < 0) {
-                clearInterval(interval);
-            }
-
-        }, 0);
-
-
-        $(this).unbind();
-
+        g.append('path')
+            .attr('d', path(feature))
+            .style('stroke', 'black')
+            .style('fill', 'none');
     });
 
 
@@ -234,4 +230,13 @@ var LineGraph = function(selector, data, images, opts) {
 
 
 module.exports = LineGraph;
+
+
+LineGraph.prototype.updateMean = function(m) {
+    this.currentMean = m;
+    var self = this;
+    _.each(this.stateChangeFlags, function(val, key) {
+        self.stateChangeFlags[key] = true;
+    });
+};
 

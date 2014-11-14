@@ -1,2 +1,30 @@
 // desktop content goes here
-.viz
+
+.row.head
+    .column-8
+        h3
+            | Accurate Area Filling with Integral Approximation
+
+        p.lead
+            small
+                | This method can be used to accurately fill proportions of arbitrary shapes. Area is approximated by drawing to offscreen canvas contexts and checking pixelwise paint colors.
+
+
+.row
+    .column-4
+    .column-4
+        .range-container.centered
+            h5
+                | Current Fill Percentage: 
+                span#fill-percentage
+                    | 50
+                | %
+            | 0 
+            input(type="range", min="0", max="100", value="50")
+            | 100
+    .column-4
+
+
+.row
+    .column-12
+        .viz

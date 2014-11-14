@@ -10,7 +10,7 @@
 @media only screen and (min-width: 768px) and (max-width: 959px) {}
 
 /* All Mobile Sizes (devices and browser) */
-@media only screen and (max-width: 767px) {
+@media only screen and (max-width: 800px) {
 
     // .desktop {
     //     display: none;
@@ -19,6 +19,10 @@
     // .mobile {
     //     display: block !important;
     // }
+
+    input[type="submit"] {
+        margin-top: 0 !important;
+    }
 }
 
 @media only screen and (min-width: 767px) and (max-width: 880px) {
@@ -30,6 +34,15 @@
 
 }
 
-/* Mobile Portrait Size to Mobile Landscape Size (devices and browsers) */
-@media only screen and (max-width: 479px) {
+
+@media only screen and (max-width: 600px) {
+
+    .axis {
+        .tick:nth-child(odd) {
+            text {
+                display: none;
+            }
+        }
+    }
+    
 }

@@ -24,7 +24,15 @@ function DesktopViewController($el) {
 
     // maybe you want to instantiate a vizualization:
     //
-    new Viz(this.$el.find('.viz')[0]);
+    var viz = new Viz(this.$el.find('.viz')[0]);
+
+    var self = this;
+
+    this.$el.find('.range-container').find('input[type=range]').on('change mousemove', _.throttle(function() {
+        var val = $(this).val();
+        self.$el.find('span#fill-percentage').html(val);
+        viz.updateMean(val / 100);
+    }, 300));
 }
 
 
